@@ -1,0 +1,214 @@
+/* pages/device/device.wxss */
+.container {
+  padding: 0;
+  overflow: hidden;
+}
+
+.pull-refresh-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f5f5f5;
+  color: #888;
+  font-size: 28rpx;
+  transition: height 0.3s;
+}
+
+.bluetooth-section {
+  padding: 20rpx;
+  background-color: #f8f8f8;
+}
+
+.section-title {
+  font-weight: bold;
+  margin-bottom: 15rpx;
+  font-size: 32rpx;
+  color: #333;
+}
+
+.device-list {
+  margin-bottom: 20rpx;
+}
+
+.device-items {
+  background-color: #fff;
+  border-radius: 8rpx;
+  overflow: hidden;
+}
+
+.device-item {
+  padding: 15rpx;
+  border-bottom: 1rpx solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.device-item.connected {
+  background-color: #e6f7ff;
+}
+
+.device-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.device-name {
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+.device-id {
+  font-size: 24rpx;
+  color: #888;
+  margin-top: 5rpx;
+}
+
+.rssi {
+  font-size: 24rpx;
+  color: #888;
+}
+
+.no-device {
+  padding: 30rpx;
+  text-align: center;
+  color: #888;
+}
+
+.bluetooth-actions {
+  display: flex;
+  margin-top: 20rpx;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 16rpx 0;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+  text-align: center;
+  background-color: #fff;
+  color: #1890ff;
+  border: 1rpx solid #1890ff;
+}
+
+.action-btn[disabled] {
+  background-color: #f5f5f5;
+  color: #aaa;
+  border-color: #ddd;
+}
+
+.connection-status {
+  padding: 20rpx;
+  background-color: #e6f7ff;
+  margin: 20rpx;
+  border-radius: 8rpx;
+}
+
+.wifi-section {
+  padding: 20rpx;
+  background-color: #f8f8f8;
+  margin: 20rpx;
+  border-radius: 12rpx;
+}
+
+.wifi-status {
+  padding: 20rpx;
+  border-radius: 8rpx;
+  background-color: #f0f9eb;
+  margin-bottom: 20rpx;
+}
+
+.wifi-title {
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 10rpx;
+}
+
+.wifi-info {
+  padding: 10rpx 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wifi-name {
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+.wifi-signal {
+  font-size: 24rpx;
+  color: #888;
+}
+
+.change-wifi-btn {
+  margin-top: 15rpx;
+  color: #1890ff;
+  text-align: center;
+  font-size: 28rpx;
+}
+
+.wifi-list {
+  margin-bottom: 20rpx;
+}
+
+.wifi-items {
+  background-color: #fff;
+  border-radius: 8rpx;
+  overflow: hidden;
+}
+
+.wifi-item {
+  padding: 15rpx;
+  border-bottom: 1rpx solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wifi-item.selected {
+  background-color: #e6f7ff;
+}
+
+.signal-strength {
+  font-size: 24rpx;
+  color: #888;
+}
+
+.no-wifi-permission {
+  padding: 30rpx;
+  text-align: center;
+  color: #888;
+}
+
+.request-permission-btn {
+  margin-top: 20rpx;
+  padding: 15rpx 30rpx;
+  background-color: #1890ff;
+  color: white;
+  border-radius: 8rpx;
+  display: inline-block;
+}
+
+.password-section {
+  margin-bottom: 30rpx;
+}
+
+.password-input {
+  padding: 15rpx;
+  border: 1rpx solid #ddd;
+  border-radius: 8rpx;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 30rpx;
+}
+
+.connect-btn {
+  background-color: #1890ff;
+  color: white;
+  border-radius: 8rpx;
+  padding: 20rpx 0;
+  font-size: 32rpx;
+  font-weight: 500;
+  text-align: center;
+}

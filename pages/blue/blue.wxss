@@ -1,0 +1,191 @@
+.page-container {
+  min-height: 100vh;
+  background: #35254F;
+}
+
+.progress-container {
+  height: 12rpx;
+  background-color: #2a223d;
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  background-color: #24C9ED;
+  border-radius: 6rpx;
+  transition: width 0.3s ease;
+}
+
+.steps-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: stretch;
+  background: #291A38;
+  padding: 0;
+  margin-top: 16rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.step-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18rpx 0;
+  background: transparent;
+  transition: background 0.2s;
+}
+
+.step-block:not(:last-child) {
+  border-right: 2rpx solid #35254F;
+}
+
+.step-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 8rpx;
+}
+
+.step-icon {
+  width: 40rpx;
+  height: 40rpx;
+  margin-bottom: 8rpx;
+}
+
+.step-desc {
+  font-size: 24rpx;
+  color: #6ec1ff;
+}
+
+.active-step {
+  background: #35254F;
+}
+
+.completed-step {
+  opacity: 0.7;
+}
+
+.content-scroll {
+  height: calc(100vh - 120rpx - 60rpx - 100rpx); /* 需根据实际顶部高度调整 */
+  background: #35254F;
+}
+
+.refresh-tip {
+  color: #b0b0b0;
+  text-align: center;
+  margin: 40rpx 0 20rpx 0;
+  font-size: 28rpx;
+}
+
+.search-result-title {
+  color: #fff;
+  text-align: center;
+  font-size: 32rpx;
+  margin-bottom: 24rpx;
+}
+
+.device-list {
+  margin: 0 32rpx;
+}
+
+.device-item {
+  background: #2a223d;
+  border-radius: 16rpx;
+  padding: 32rpx 24rpx 24rpx 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.device-name {
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: bold;
+  margin-bottom: 12rpx;
+}
+
+.device-mac {
+  color: #b0b0b0;
+  font-size: 26rpx;
+}
+
+.wifi-tip {
+  color: #fff;
+  font-size: 28rpx;
+  margin-bottom: 20rpx;
+  text-align: center;
+}
+.wifi-list {
+  margin-bottom: 20rpx;
+}
+.wifi-item {
+  background: #2a223d;
+  color: #fff;
+  padding: 20rpx;
+  border-radius: 12rpx;
+  margin-bottom: 12rpx;
+  text-align: center;
+  font-size: 28rpx;
+}
+.selected-wifi {
+  border: 2rpx solid #24C9ED;
+  color: #24C9ED;
+}
+.disabled-wifi {
+  color: #fff;
+  background: #35254F;
+}
+.wifi-type {
+  font-size: 22rpx;
+  margin-left: 12rpx;
+}
+
+.wifi-5g-tip{
+  margin-top: 20rpx;
+  font-size: 28rpx;
+  text-align: center;
+  color: #fff;
+}
+
+.wifi-password {
+  width: 80%;
+  margin: 20rpx auto;
+  display: block;
+  padding: 16rpx;
+  border-radius: 8rpx;
+  border: none;
+  background: #fff;
+  font-size: 28rpx;
+}
+
+.wifi-btn-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 24rpx;
+  margin-top: 32rpx;
+}
+
+.wifi-btn-row button {
+  flex: 1;
+  border-radius: 32rpx;
+  height: 80rpx;
+  font-size: 32rpx;
+}
+
+.change-wifi-btn {
+  background: #fff;
+  color: #24C9ED;
+  border: 1rpx solid #24C9ED;
+  border-radius: 32rpx;
+  margin-left: 0;
+}
+
+.finish-tip {
+  color: #24C9ED;
+  font-size: 32rpx;
+  text-align: center;
+  margin: 40rpx 0;
+}

@@ -1,0 +1,119 @@
+<nav-bar title="设备连接" bgColor="#35254F" titleColor="#fff" bind:tap="onBack"></nav-bar>
+<!-- pages/device/device.wxml -->
+<view class="container" bindtouchstart="onTouchStart" bindtouchmove="onTouchMove" bindtouchend="onTouchEnd">
+  <!-- 下拉刷新指示器 -->
+  <view class="pull-refresh-indicator" style="height: {{refreshingDistance}}rpx; opacity: {{refreshingDistance / 150}}">
+    <text>{{isRefreshingDevices ? '正在搜索设备...' : '下拉重新搜索蓝牙'}}</text>
+  </view>
+
+  <!-- 蓝牙连接区域 -->
+  <view class="bluetooth-section">
+    <text class="section-title"  bind:tap="toBlue">蓝牙设备</text>
+    
+    <!-- 设备列表 -->
+    <view class="device-list" wx:if="{{deviceList.length > 0}}">
+      <view class="device-items">
+        <view 
+          class="device-item {{connectedDeviceId === item.deviceId ? 'connected' : ''}}" 
+          wx:for="{{deviceList}}" 
+          wx:key="deviceId"
+          data-device-id="{{item.deviceId}}"
+          bindtap="connectToDevice">
+          <view class="device-info">
+            <text class="device-name">{{item.name || '未知设备'}}</text>
+            <text class="device-id">{{item.deviceId}}</text>
+          </view>
+          <text class="rssi">信号: {{item.RSSI}}</text>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 无设备提示 -->
+    <view class="no-device" wx:else>
+      <text>暂无可用蓝牙设备</text>
+      <text>请确保设备已开启并在附近</text>
+    </view>
+    
+    <!-- 操作按钮 -->
+    <view class="bluetooth-actions">
+      <button class="action-btn" bindtap="initBluetooth" disabled="{{hasBluetoothPermission}}">
+        {{hasBluetoothPermission ? '蓝牙已开启' : '打开蓝牙'}}
+      </button>
+      <button class="action-btn" bindtap="startDiscoveringDevices" loading="{{isRefreshingDevices}}">
+        {{isRefreshingDevices ? '搜索中...' : '搜索设备'}}
+      </button>
+    </view>
+  </view>
+
+  <!-- 连接状态 -->
+  <view class="connection-status" wx:if="{{connectedDeviceId}}">
+    <text>已连接到: {{connectedDeviceId}}</text>
+    <text>当前状态: {{currentStatus}}</text>
+  </view>
+
+  <!-- WiFi配置区域 -->
+  <view class="wifi-section" wx:if="{{connectedDeviceId}}">
+    <text class="section-title">WiFi配置</text>
+    
+    <!-- 当前连接的WiFi信息 -->
+    <view class="wifi-status" wx:if="{{isConnectedToWifi}}">
+      <text class="wifi-title">当前手机连接的WiFi</text>
+      <view class="wifi-info">
+        <text class="wifi-name">{{currentConnectedWifi.SSID}}</text>
+        <text class="wifi-signal">
+          {{currentConnectedWifi.signalStrength > -50 ? '强' : 
+          currentConnectedWifi.signalStrength > -70 ? '中' : '弱'}}
+        </text>
+      </view>
+      <button class="change-wifi-btn" bindtap="getWifiList">
+        更换WiFi
+      </button>
+    </view>
+    
+    <!-- WiFi列表 -->
+    <view class="wifi-list" wx:if="!isConnectedToWifi || (wifiList.length > 0 && hasWifiPermission)">
+      <view class="wifi-items">
+        <view 
+          class="wifi-item {{selectedWifi === item.SSID ? 'selected' : ''}}" 
+          wx:for="{{wifiList}}" 
+          wx:key="BSSID"
+          data-wifi="{{item}}"
+          bindtap="selectWifi">
+          <text>{{item.SSID}}</text>
+          <text class="signal-strength">
+            {{item.signalStrength > -50 ? '强' : 
+            item.signalStrength > -70 ? '中' : '弱'}}
+          </text>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 无WiFi权限提示 -->
+    <view class="no-wifi-permission" wx:if="{{!hasWifiPermission && connectedDeviceId}}">
+      <text>需要WiFi权限来获取可用网络</text>
+      <button class="request-permission-btn" bindtap="getWifiList">
+        申请WiFi权限
+      </button>
+    </view>
+    
+    <!-- 密码输入区域 -->
+    <view class="password-section" wx:if="{{selectedWifi && (!isConnectedToWifi || selectedWifi !== currentConnectedWifi.SSID)}}">
+      <text class="section-title">WiFi密码</text>
+      <input 
+        class="password-input" 
+        type="password" 
+        placeholder="请输入WiFi密码"
+        bindinput="inputPassword" 
+        value="{{password}}"
+      />
+    </view>
+    
+    <!-- 连接按钮 -->
+    <button 
+      class="connect-btn" 
+      disabled="{{!selectedWifi || (!isConnectedToWifi && !password) || !connectedDeviceId || !hasWifiPermission}}"
+      bindtap="connectToWifi">
+      {{isConnectedToWifi ? '使用当前WiFi配置设备' : '连接并配置WiFi'}}
+    </button>
+  </view>
+</view>

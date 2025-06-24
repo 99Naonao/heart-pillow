@@ -1,0 +1,102 @@
+<nav-bar title="设备连接" bgColor="#35254F" titleColor="#fff" bind:tap="onBack"></nav-bar>
+<view class="page-container">
+  <!-- 进度条 -->
+  <view class="progress-container">
+    <view class="progress-bar" style="width: {{progress}}%"></view>
+  </view>
+
+  <!-- 步骤块容器 -->
+  <view class="steps-container">
+    <view class="step-block {{currentTab==0?'active-step':''}} {{stepsCompleted[0]?'completed-step':''}}">
+      <view class="step-title">第一步</view>
+      <image src="/static/bluetooth.png" class="step-icon"/>
+      <view class="step-desc">蓝牙连接</view>
+    </view>
+    <view class="step-block {{currentTab==1?'active-step':''}} {{stepsCompleted[1]?'completed-step':''}}">
+      <view class="step-title">第二步</view>
+      <image src="/static/wifi.png" class="step-icon"/>
+      <view class="step-desc">WiFi配置</view>
+    </view>
+    <view class="step-block {{currentTab==2?'active-step':''}} {{stepsCompleted[2]?'completed-step':''}}">
+      <view class="step-title">第三步</view>
+      <image src="/static/finish.png" class="step-icon"/>
+      <view class="step-desc">完成配网</view>
+    </view>
+  </view>
+
+  <!-- 内容区 -->
+  <scroll-view
+    class="content-scroll"
+    scroll-y="true"
+    refresher-enabled="{{currentTab == 0}}"
+    refresher-triggered="{{isRefreshing}}"
+    bindrefresherrefresh="onContentRefresh"
+    style="height: calc(100vh - 120rpx - 60rpx - 100rpx);"
+  >
+    <!-- 步骤一：蓝牙设备列表 -->
+    <view wx:if="{{currentTab==0}}">
+      <view class="refresh-tip">下拉重新搜索</view>
+      <view class="search-result-title">搜索到以下{{devices.length}}个产品</view>
+      <view class="device-list">
+        <block wx:for="{{devices}}" wx:key="deviceId">
+          <view class="device-item" bindtap="connectBluetooth" data-mac="{{item.deviceId}}">
+            <view class="device-name">{{item.name}}</view>
+            <view class="device-mac">MAC：{{item.deviceId}}</view>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- 步骤二：WiFi配网 -->
+    <view wx:if="{{currentTab==1}}">
+      <!-- 已选择WiFi（包括手机已连接WiFi） -->
+      <view wx:if="{{wifiSelected}}">
+        <view class="wifi-tip">WiFi名称：{{wifiName}}</view>
+        <input
+          class="wifi-password"
+          type="password"
+          placeholder="请输入WiFi密码"
+          bindinput="onInputPassword"
+          value="{{wifiPassword}}"
+          disabled="{{is5GConnected}}"
+        />
+        <view class="wifi-btn-row">
+          <button
+            type="primary"
+            bindtap="sendWifiConfig"
+            disabled="{{is5GConnected}}"
+          >发送配网指令</button>
+          <button class="change-wifi-btn" bindtap="showWifiList">更换WiFi</button>
+        </view>
+        <view wx:if="{{is5GConnected}}" class="wifi-5g-tip">
+          当前WiFi为5G信号，仅支持2.4G WiFi，请更换WiFi
+        </view>
+      </view>
+      <!-- 选择WiFi列表 -->
+      <view wx:elif="{{showWifiList}}">
+        <view class="wifi-tip">请选择要连接的WiFi（仅支持2.4G）</view>
+        <view class="wifi-list">
+          <block wx:for="{{wifiList}}" wx:key="SSID">
+            <view
+              class="wifi-item"
+              bindtap="selectWifi"
+              data-ssid="{{item.SSID}}"
+              wx:if="{{item.frequency < 3000}}"
+            >
+              {{item.SSID}} <text class="wifi-type">2.4G</text>
+            </view>
+          </block>
+          <view wx:if="{{wifiList.length === 0}}" class="wifi-tip">
+            未获取到WiFi列表，请确保已打开手机WiFi开关并授权位置信息。
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 步骤三：完成 -->
+    <view wx:if="{{currentTab==2}}">
+      <view class="finish-tip">配网完成！</view>
+      <button type="primary" class="finish-btn" bindtap="finishAndReturn">完成并返回首页</button>
+    </view>
+  </scroll-view>
+</view>
