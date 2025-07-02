@@ -1,72 +1,9 @@
-// 检查位置权限（用于蓝牙和WiFi功能）
-function checkLocationAuth() {
-    return new Promise((resolve, reject) => {
-        wx.getSetting({
-            success(res) {
-                if (res.authSetting['scope.userLocation']) {
-                    // 已授权
-                    resolve();
-                } else {
-                    // 未授权则请求授权
-                    wx.authorize({
-                        scope: 'scope.userLocation',
-                        success: resolve,
-                        fail: () => {
-                            // 用户拒绝授权，弹窗提示
-                            wx.showModal({
-                                title: '权限提醒',
-                                content: '需要获取您的位置信息以使用蓝牙和WiFi功能。请在设置中手动开启“位置信息”权限，否则无法正常使用设备连接功能。',
-                                confirmText: '去设置',
-                                cancelText: '取消',
-                                success: (modalRes) => {
-                                    if (modalRes.confirm) {
-                                        wx.openSetting();
-                                    }
-                                    reject();
-                                }
-                            });
-                        }
-                    });
-                }
-            }
-        });
-    });
-  }
-  
-  // 检查蓝牙权限（依赖位置权限，并尝试打开蓝牙适配器）
-  function checkBluetoothAuth() {
-    return new Promise((resolve, reject) => {
-        checkLocationAuth()
-           .then(() => {
-                wx.openBluetoothAdapter({
-                    success: resolve,
-                    fail: () => {
-                        // 蓝牙未开启或无权限，弹窗提示
-                        wx.showModal({
-                            title: '蓝牙权限提醒',
-                            content: '请确保已开启蓝牙功能，并在系统设置中授权蓝牙权限，否则无法正常连接设备。',
-                            confirmText: '去设置',
-                            cancelText: '取消',
-                            success: (modalRes) => {
-                                if (modalRes.confirm) {
-                                    wx.openSetting();
-                                }
-                                reject();
-                            }
-                        });
-                    }
-                });
-            })
-           .catch(reject);
-    });
-  }
-  
-  // 检查WiFi权限（只需位置权限）
-  function checkWifiAuth() {
-    return checkLocationAuth();
-  }
-  
-  Page({
+// pages/blue/blue.js
+// 最终优化版，涵盖所有细节和注释
+
+const { checkBluetoothAuth, checkWifiAuth } = require('../../utils/permissionUtil');
+
+Page({
     data: {
         //步骤
         currentTab: 0, // 当前步骤
@@ -88,19 +25,28 @@ function checkLocationAuth() {
         wifiSelected: false, // 是否已选WiFi
         wifiConnectSuccess: false, //wifi连接状态
         showWifiList:false, //是否显示wifi列表
-        is5GConnected: false //是否5G
+        is5GConnected: false, //是否5G
+        _has5GTip: false, // 防止重复弹出5G提示
+        _has5GTipModal: false // 进入WiFi步骤时重置弹窗标记
     },
-  
+
     // 页面加载时初始化进度
     onLoad() {
         this.setData({
             progress: (1 / this.data.totalSteps) * 100
         });
     },
-  
+
     // 页面显示时，如果在蓝牙步骤则自动搜索设备
     onShow() {
         this.isPageActive = true;
+        // 读取本地已连接设备状态
+        const device = wx.getStorageSync('connectedDevice');
+        if (device && device.deviceId) {
+            this.setData({
+                connectedDeviceId: device.deviceId
+            });
+        }
         if (this.data.currentTab === 0) {
             this.checkAllPermissions()
                .then(() => {
@@ -111,20 +57,20 @@ function checkLocationAuth() {
                 });
         }
     },
-  
+
     onHide() {
         this.isPageActive = false;
     },
-  
+
     onUnload() {
         this.isPageActive = false;
     },
-  
+
     // 检查所有权限（蓝牙步骤时调用）
     checkAllPermissions() {
         return checkBluetoothAuth();
     },
-  
+
     // scroll-view下拉刷新（仅蓝牙步骤可用）
     onContentRefresh() {
         if (this.data.currentTab === 0) {
@@ -143,48 +89,96 @@ function checkLocationAuth() {
             this.setData({ isRefreshing: false });
         }
     },
-  
-    // 搜索蓝牙设备，只显示名称包含GOODSLEEP的设备
+
+    /**
+     * 安全蓝牙扫描，防止频繁调用startBluetoothDevicesDiscovery导致报错
+     * 每次扫描前先stop再start，确保系统允许新一轮扫描
+     * @returns {Promise}
+     */
+    async safeStartBluetoothDevicesDiscovery() {
+        try {
+            console.log('[safeStartBluetoothDevicesDiscovery] 尝试停止上一次扫描');
+            await new Promise(res => wx.stopBluetoothDevicesDiscovery({ complete: res }));
+            console.log('[safeStartBluetoothDevicesDiscovery] 已停止上一次扫描');
+        } catch (e) {
+            console.warn('[safeStartBluetoothDevicesDiscovery] stopBluetoothDevicesDiscovery异常', e);
+        }
+        return new Promise((resolve, reject) => {
+            console.log('[safeStartBluetoothDevicesDiscovery] 开始新一轮扫描');
+            wx.startBluetoothDevicesDiscovery({
+                allowDuplicatesKey: false,
+                success: (res) => {
+                    console.log('[safeStartBluetoothDevicesDiscovery] 扫描启动成功', res);
+                    resolve(res);
+                },
+                fail: (err) => {
+                    console.error('[safeStartBluetoothDevicesDiscovery] 扫描启动失败', err);
+                    reject(err);
+                }
+            });
+        });
+    },
+
+    /**
+     * 搜索蓝牙设备，只显示名称包含GOODSLEEP的设备
+     * 每次搜索前重启蓝牙适配器，并用safeStartBluetoothDevicesDiscovery防止频繁扫描报错
+     * 支持多次重试，提升首次搜索成功率
+     * @param {Function} callback 搜索完成后的回调
+     */
     async searchBluetoothDevices(callback) {
-        const searchDuration = 2000; // 延长搜索时间到3秒
+        const searchDuration = 2000; // 每次扫描时长（毫秒）
         const maxRetryCount = 3; // 最大重试次数
         let retryCount = 0;
-  
-        while (retryCount < maxRetryCount) {
-            try {
-                await this.openBluetoothAdapter();
-                console.log('蓝牙适配器已打开，开始搜索设备...');
-                await this.startBluetoothDevicesDiscovery();
-                await new Promise(resolve => setTimeout(resolve, searchDuration));
-                const res = await this.getBluetoothDevices();
-                console.log('所有搜索到的设备:', res.devices);
-                const goodsleepDevices = res.devices.filter(d => d.name && d.name.indexOf('GOODSLEEP') !== -1);
-                console.log('筛选后的GOODSLEEP设备:', goodsleepDevices);
-                this.setData({ devices: goodsleepDevices });
-                await this.stopBluetoothDevicesDiscovery();
-  
-                if (goodsleepDevices.length > 0) {
-                    if (typeof callback === 'function') callback();
-                    return;
-                } else {
-                    console.log(`未搜索到设备，进行第 ${retryCount + 1} 次重试...`);
-                    retryCount++;
-                }
-            } catch (err) {
-                console.error('搜索蓝牙设备出错:', err);
-                console.log(`搜索失败，进行第 ${retryCount + 1} 次重试...`);
-                retryCount++;
-            }
+        // 每次搜索前重启蓝牙适配器，提升首次搜索成功率
+        try { 
+            console.log('[searchBluetoothDevices] 尝试关闭蓝牙适配器');
+            wx.closeBluetoothAdapter({ complete: () => {} }); 
+            console.log('[searchBluetoothDevices] 蓝牙适配器已关闭');
+        } catch(e) {
+            console.warn('[searchBluetoothDevices] 关闭蓝牙适配器异常', e);
         }
-  
+        while (retryCount < maxRetryCount) {
+          try {
+            console.log(`[searchBluetoothDevices] 第${retryCount+1}次尝试打开蓝牙适配器`);
+            await this.openBluetoothAdapter();
+            // 每次扫描前先stop再start，防止频繁报错
+            await this.safeStartBluetoothDevicesDiscovery();
+            console.log('[searchBluetoothDevices] 扫描中...');
+            await new Promise(resolve => setTimeout(resolve, searchDuration));
+            const res = await this.getBluetoothDevices();
+            // 只筛选名称包含GOODSLEEP的设备
+            let goodsleepDevices = res.devices.filter(d => d.name && d.name.indexOf('GOODSLEEP') !== -1);
+            // 如果已连接设备不在当前搜索结果中，手动加进去并标记
+            const connectedDeviceId = this.data.connectedDeviceId;
+            if (connectedDeviceId && !goodsleepDevices.some(d => d.deviceId === connectedDeviceId)) {
+                goodsleepDevices = [
+                    { deviceId: connectedDeviceId, name: 'GOODSLEEP (已连接)' },
+                    ...goodsleepDevices
+                ];
+            }
+            this.setData({ devices: goodsleepDevices });
+            await this.stopBluetoothDevicesDiscovery();
+            if (goodsleepDevices.length > 0) {
+              console.log('[searchBluetoothDevices] 搜索到GOODSLEEP设备，结束扫描');
+              if (typeof callback === 'function') callback();
+              return;
+            } else {
+              console.log(`[searchBluetoothDevices] 未搜索到设备，重试(${retryCount+1}/${maxRetryCount})`);
+              retryCount++;
+            }
+          } catch (err) {
+            console.error(`[searchBluetoothDevices] 搜索蓝牙设备出错，重试(${retryCount+1}/${maxRetryCount})`, err);
+            retryCount++;
+          }
+        }
         wx.showModal({
-            title: '未搜索到设备',
-            content: '如长时间未搜索到设备，请尝试关闭手机蓝牙后重新打开再试。',
-            showCancel: false
+          title: '未搜索到设备',
+          content: '如长时间未搜索到设备，请尝试关闭手机蓝牙后重新打开再试。',
+          showCancel: false
         });
         if (typeof callback === 'function') callback();
     },
-  
+
     openBluetoothAdapter() {
         return new Promise((resolve, reject) => {
             wx.openBluetoothAdapter({
@@ -197,20 +191,7 @@ function checkLocationAuth() {
             });
         });
     },
-  
-    startBluetoothDevicesDiscovery() {
-        return new Promise((resolve, reject) => {
-            wx.startBluetoothDevicesDiscovery({
-                allowDuplicatesKey: false,
-                success: resolve,
-                fail: (err) => {
-                    console.error('startBluetoothDevicesDiscovery失败:', err);
-                    reject(err);
-                }
-            });
-        });
-    },
-  
+
     getBluetoothDevices() {
         return new Promise((resolve, reject) => {
             wx.getBluetoothDevices({
@@ -222,7 +203,7 @@ function checkLocationAuth() {
             });
         });
     },
-  
+
     stopBluetoothDevicesDiscovery() {
         return new Promise((resolve, reject) => {
             wx.stopBluetoothDevicesDiscovery({
@@ -234,19 +215,28 @@ function checkLocationAuth() {
             });
         });
     },
-  
+
     // 连接蓝牙设备
     connectBluetooth(e) {
         const deviceId = e.currentTarget.dataset.mac;
-        console.log('准备连接设备，deviceId:', deviceId);
+        const device = this.data.devices.find(d => d.deviceId === deviceId);
         wx.createBLEConnection({
             deviceId,
             success: () => {
                 console.log('蓝牙连接成功:', deviceId);
-                this.setData({ connectedDeviceId: deviceId });
-                wx.showToast({ title: '蓝牙已连接', icon: 'success' });
-                // 获取服务和特征值
+                // 保存设备信息到本地，便于home页面自动读取
+                wx.setStorageSync('connectedDevice', {
+                    deviceId: deviceId,
+                    name: device ? device.name : ''
+                });
+                this.setData({
+                    connectedDeviceId: deviceId,
+                    stepsCompleted: [true, false, false],
+                    currentTab: 1,
+                    progress: (2 / this.data.totalSteps) * 100
+                });
                 this.getServiceAndCharacteristics(deviceId);
+                this.initWifiStep();
             },
             fail: (err) => {
                 console.error('蓝牙连接失败:', err);
@@ -254,7 +244,7 @@ function checkLocationAuth() {
             }
         });
     },
-  
+
     // 动态获取服务和特征值ID
     getServiceAndCharacteristics(deviceId) {
         console.log('获取服务列表，deviceId:', deviceId);
@@ -309,7 +299,7 @@ function checkLocationAuth() {
             }
         });
     },
-  
+
     // 蓝牙连接成功后进入WiFi配网步骤
     onBluetoothConnected() {
         this.setData({
@@ -317,9 +307,10 @@ function checkLocationAuth() {
             stepsCompleted: [true, false, false],
             progress: (2 / this.data.totalSteps) * 100
         });
+        this._has5GTipModal = false; // 进入WiFi步骤时重置弹窗标记
         this.initWifiStep();
     },
-  
+
     // 初始化WiFi步骤，判断手机是否已连接WiFi
     async initWifiStep() {
         if (!this.isPageActive) {
@@ -339,21 +330,22 @@ function checkLocationAuth() {
                 isWifiConnected: true,
                 wifiName: res.wifi.SSID,
                 wifiSelected: true,
-                showWifiList:false,
-                is5GConnected:is5G
+                showWifiList: false,
+                is5GConnected: is5G
             });
-            if(is5G){
-              wx.showModal({
-                title: '温馨提示',
-                content: '当前连接的是5G WiFi，仅支持2.4G WiFi，请更换WiFi',
-                confirmText: '更换wifi',
-                cancelText: '取消',
-                success: (res) => {
-                    if (res.confirm) {
-                        this.showWifiList();
+            if (is5G && !this._has5GTipModal) {
+                this._has5GTipModal = true;
+                wx.showModal({
+                    title: '温馨提示',
+                    content: '当前连接的是5G WiFi，仅支持2.4G WiFi，请更换WiFi',
+                    confirmText: '更换wifi',
+                    cancelText: '取消',
+                    success: (res) => {
+                        if (res.confirm) {
+                            this.showWifiList();
+                        }
                     }
-                }
-            });
+                });
             }
         } catch (err) {
             console.log('手机未连接WiFi，准备获取WiFi列表...');
@@ -370,13 +362,13 @@ function checkLocationAuth() {
                     isWifiConnected: false,
                     wifiList: [],
                     wifiSelected: false,
-                    showWifiList:false,
-                    is5GConnected:false
+                    showWifiList: false,
+                    is5GConnected: false
                 });
             }
         }
     },
-  
+
     startWifi() {
         return new Promise((resolve, reject) => {
             wx.startWifi({
@@ -393,7 +385,7 @@ function checkLocationAuth() {
             });
         });
     },
-  
+
     getConnectedWifi() {
         return new Promise((resolve, reject) => {
             wx.getConnectedWifi({
@@ -402,7 +394,7 @@ function checkLocationAuth() {
             });
         });
     },
-  
+
     getWifiList() {
       return new Promise((resolve, reject) => {
         // 先移除之前的监听，防止多次注册
@@ -424,8 +416,8 @@ function checkLocationAuth() {
         });
       });
     },
-  
-    // 点击“更换WiFi”按钮
+
+    // 点击"更换WiFi"按钮
     showWifiList() {
       this.getWifiList().then(() => {
         this.setData({
@@ -438,16 +430,13 @@ function checkLocationAuth() {
     // 选择WiFi（仅未连接时可选）
     selectWifi(e) {
       const ssid = e.currentTarget.dataset.ssid;
-      const frequency = e.currentTarget.dataset.frequency;
-      if (frequency >= 3000) {
-        wx.showToast({ title: '不支持5G WiFi', icon: 'none' });
-        return;
-      }
-      console.log('用户选择了WiFi:', ssid);
+      const wifi = this.data.wifiList.find(w => w.SSID === ssid);
+      const is5G = wifi && wifi.frequency >= 4900;
       this.setData({
         wifiName: ssid,
         wifiSelected: true,
-        showWifiList:false
+        showWifiList: false,
+        is5GConnected: is5G
       });
     },
   
@@ -461,60 +450,66 @@ function checkLocationAuth() {
   
     // 发送配网指令
     sendWifiConfig() {
-        if (!this.isPageActive) {
-            console.log('页面已隐藏，不再发送配网指令');
-            return;
-        }
-        const { connectedDeviceId, serviceId, send_characteristicId, notify_cId, wifiName, wifiPassword } = this.data;
-        if (!connectedDeviceId || !serviceId || !send_characteristicId || !notify_cId || !wifiName || !wifiPassword) {
-            wx.showToast({ title: '请先连接蓝牙并输入WiFi信息', icon: 'none' });
-            return;
-        }
-        const cmd = `Good Sleep WIFI ID:"${wifiName}","${wifiPassword}"`;
-        const buffer = this.stringToHex(cmd);
-  
-        console.log('准备发送配网指令:', cmd);
-        wx.writeBLECharacteristicValue({
-            deviceId: connectedDeviceId,
-            serviceId: serviceId,
-            characteristicId: send_characteristicId,
-            value: buffer,
-            success: () => {
-                console.log('配网指令发送成功，等待设备返回状态...');
-                wx.showLoading({ title: 'WiFi连接中' });
-                this.listenForDeviceStatus();
-            },
-            fail: (err) => {
-                console.error('配网指令发送失败:', err);
-                wx.showToast({ title: '配网指令发送失败', icon: 'none' });
-            }
-        });
-    },
+      if (this.data.is5GConnected) return;
+      if (!this.data.wifiPassword) {
+          wx.showToast({ title: '请输入WiFi密码', icon: 'none' });
+          return;
+      }
+      const cmd = `Good Sleep WIFI ID:"${this.data.wifiName}","${this.data.wifiPassword}"`;
+      console.log('发送配网信息',cmd);
+      const buffer = this.stringToHex(cmd);
+      console.log('写入参数:', {
+        deviceId: this.data.connectedDeviceId,
+        serviceId: this.data.serviceId,
+        characteristicId: this.data.send_characteristicId,
+        value: buffer,
+        length: buffer.byteLength
+      });
+      wx.writeBLECharacteristicValue({
+          deviceId: this.data.connectedDeviceId,
+          serviceId: this.data.serviceId,
+          characteristicId: this.data.send_characteristicId,
+          value: buffer,
+          success: () => {
+              wx.showLoading({ title: 'WiFi连接中' });
+              this.listenForDeviceStatus();
+          },
+          fail: (err) => {
+              console.error('配网指令发送失败:', err);
+              wx.showToast({ title: '发送失败', icon: 'none' });
+          }
+      });
+  },
   
     // 监听设备返回的配网状态
     listenForDeviceStatus() {
         if (!this.isPageActive) {
             console.log('页面已隐藏，不再监听设备状态');
+            wx.hideLoading();
             return;
         }
         const { connectedDeviceId, serviceId, notify_cId } = this.data;
+        // 先移除旧监听，防止多次回调
+        wx.offBLECharacteristicValueChange && wx.offBLECharacteristicValueChange();
         wx.notifyBLECharacteristicValueChange({
             deviceId: connectedDeviceId,
             serviceId: serviceId,
             characteristicId: notify_cId,
             state: true,
             success: () => {
+                console.log('notifyBLECharacteristicValueChange 成功，开始监听设备回包');
                 wx.onBLECharacteristicValueChange((res) => {
+                    console.log('收到设备回包:', res);
+                    console.log('设备返回的状态码status',res.value)
+                    wx.hideLoading();
                     const value = new Uint8Array(res.value);
                     const status = value[value.length - 1];
-                    console.log('收到设备返回的配网状态码:', status, '原始数据:', value);
-                    wx.hideLoading();
-                    // 按协议解析状态码
                     this.handleDeviceStatus(status);
                 });
             },
             fail: (err) => {
-                console.error('启用特征值通知失败:', err);
+                console.error('notifyBLECharacteristicValueChange 失败:', err);
+                wx.hideLoading();
                 wx.showToast({ title: '监听设备状态失败', icon: 'none' });
             }
         });
@@ -534,7 +529,7 @@ function checkLocationAuth() {
         wx.showToast({ title: 'WIFI断开', icon: 'none' });
       } else if (status === 0x07) {
         wx.showToast({ title: '不在床', icon: 'none' });
-      } else if (status !== 0x01 && status !== 0x04) {
+      } else {
         wx.showToast({ title: '未知状态', icon: 'none' });
       }
     },
@@ -558,6 +553,7 @@ function checkLocationAuth() {
   
     // 配网完成，返回首页
     finishAndReturn() {
+        this.disconnectBluetooth();
         const stepsCompleted = [...this.data.stepsCompleted];
         stepsCompleted[2] = true;
         this.setData({
@@ -581,6 +577,39 @@ function checkLocationAuth() {
   
     // 返回上一级
     onBack() {
+        this.disconnectBluetooth();
         wx.navigateBack();
+    },
+
+    // 断开蓝牙连接
+    disconnectBluetooth() {
+        if (this.data.connectedDeviceId) {
+            wx.closeBLEConnection({
+                deviceId: this.data.connectedDeviceId
+            });
+            this.setData({
+                connectedDeviceId: '',
+                send_characteristicId: '',
+                notify_cId: '',
+                serviceId: ''
+            });
+        }
+    },
+
+    // 断开已连接设备
+    disconnectCurrentDevice() {
+        const deviceId = this.data.connectedDeviceId;
+        if (deviceId) {
+            wx.closeBLEConnection({
+                deviceId,
+                complete: () => {
+                    wx.removeStorageSync('connectedDevice');
+                    this.setData({ connectedDeviceId: '' });
+                    wx.showToast({ title: '已断开设备', icon: 'none' });
+                    // 重新刷新设备列表
+                    this.searchBluetoothDevices();
+                }
+            });
+        }
     }
   });

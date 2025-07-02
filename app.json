@@ -2,7 +2,9 @@
   "pages": [
     "pages/home/home",
     "pages/index/index",
-    "pages/blue/blue"
+    "pages/blue/blue",
+    "pages/report/report",
+    "pages/report"
   ],
   "window": {
     "navigationBarTextStyle": "black",

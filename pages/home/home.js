@@ -1,22 +1,26 @@
 // pages/home.js
+const DeviceManager = require('../../utils/deviceManager');
+
 Page({
 
   /**
    * 页面的初始数据
    */
   data: {
-    deviceConnected:false,
-    heartRate:null,
-    breathRate:null,
-    turnOver:null,
-    isLeavePillow:true 
+    deviceConnected: false,
+    deviceName: '',
+    heartRate: null,
+    breathRate: null,
+    turnOver: null,
+    isLeavePillow: true,
+    _realtimeTimer: null // 定时器句柄
   },
 
   /**
    * 生命周期函数--监听页面加载
    */
   onLoad(options) {
-
+    this.deviceManager = new DeviceManager(this);
   },
 
   /**
@@ -30,21 +34,42 @@ Page({
    * 生命周期函数--监听页面显示
    */
   onShow() {
-
+    console.log('[home] onShow');
+    // 自动读取本地保存的设备信息
+    const device = wx.getStorageSync('connectedDevice');
+    console.log('[home] 读取本地设备信息:', device);
+    if (device && device.deviceId) {
+      this.setData({
+        deviceConnected: true,
+        deviceName: device.name || ''
+      });
+      this.deviceManager.getDeviceRealtimeData(device.deviceId);
+      this.deviceManager.startRealtimeTimer(device.deviceId);
+    } else {
+      this.setData({
+        deviceConnected: false,
+        deviceName: '',
+        heartRate: null,
+        breathRate: null,
+        turnOver: null,
+        isLeavePillow: true
+      });
+      this.deviceManager.clearRealtimeTimer();
+    }
   },
 
   /**
    * 生命周期函数--监听页面隐藏
    */
   onHide() {
-
+    this.deviceManager.clearRealtimeTimer();
   },
 
   /**
    * 生命周期函数--监听页面卸载
    */
   onUnload() {
-
+    this.deviceManager.clearRealtimeTimer();
   },
 
   /**
@@ -71,5 +96,5 @@ Page({
     wx.navigateTo({
       url: '/pages/blue/blue',
     })
-  }
+  },
 })

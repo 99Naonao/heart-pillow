@@ -38,13 +38,25 @@
       <view class="refresh-tip">下拉重新搜索</view>
       <view class="search-result-title">搜索到以下{{devices.length}}个产品</view>
       <view class="device-list">
-        <block wx:for="{{devices}}" wx:key="deviceId">
-          <view class="device-item" bindtap="connectBluetooth" data-mac="{{item.deviceId}}">
-            <view class="device-name">{{item.name}}</view>
-            <view class="device-mac">MAC：{{item.deviceId}}</view>
+      <block wx:for="{{devices}}" wx:key="deviceId">
+        <view class="device-item">
+          <view class="device-name">
+            {{item.name}}
+            <text wx:if="{{item.deviceId === connectedDeviceId}}">(已连接)</text>
           </view>
-        </block>
-      </view>
+          <view class="device-mac">MAC：{{item.deviceId}}</view>
+          <button wx:if="{{item.deviceId === connectedDeviceId}}"
+                  size="mini"
+                  bindtap="disconnectCurrentDevice"
+                  class="disconnect-btn">断开</button>
+          <button wx:else
+                  size="mini"
+                  bindtap="connectBluetooth"
+                  data-mac="{{item.deviceId}}"
+                  class="connect-btn">连接</button>
+        </view>
+      </block>
+    </view>
     </view>
 
     <!-- 步骤二：WiFi配网 -->
