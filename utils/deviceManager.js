@@ -24,6 +24,16 @@ class DeviceManager {
       "</soap:Body>" +
       "</soap:Envelope>";
 
+    console.log('[DeviceManager] 请求设备实时数据接口:', {
+      url: 'https://bed.qssmart.cn/CustomerAPIService.asmx',
+      method: 'POST',
+      data: postXml,
+      header: {
+        'content-type': 'text/xml; charset=utf-8',
+        'SOAPAction': 'http://bed.cn/' + method
+      }
+    });
+
     wx.request({
       url: 'https://bed.qssmart.cn/CustomerAPIService.asmx',
       method: 'POST',
@@ -33,11 +43,13 @@ class DeviceManager {
         'SOAPAction': 'http://bed.cn/' + method
       },
       success: (res) => {
+        console.log('[DeviceManager] 接口请求成功，返回内容:', res);
         const xml = res.data;
         const match = xml.match(/<GetDeviceRealtimeDataResult>([\s\S]*?)<\/GetDeviceRealtimeDataResult>/);
         if (match && match[1]) {
           try {
             const result = JSON.parse(match[1]);
+            console.log('[DeviceManager] 解析后的数据:', result);
             if (result && result.ret === 0 && result.data && result.data.length > 0) {
               const d = result.data[0];
               let heartRate = null, breathRate = null;
@@ -52,6 +64,7 @@ class DeviceManager {
                 isLeavePillow: !d.inbed
               });
             } else {
+              console.warn('[DeviceManager] 返回数据异常或无数据:', result);
               this.page.setData({
                 heartRate: null,
                 breathRate: null,
@@ -60,6 +73,7 @@ class DeviceManager {
               });
             }
           } catch (e) {
+            console.error('[DeviceManager] 数据解析异常:', e, match[1]);
             wx.showToast({ title: '数据解析失败', icon: 'none' });
             this.page.setData({
               heartRate: null,
@@ -69,6 +83,7 @@ class DeviceManager {
             });
           }
         } else {
+          console.error('[DeviceManager] 接口返回格式错误:', xml);
           wx.showToast({ title: '接口返回格式错误', icon: 'none' });
           this.page.setData({
             heartRate: null,
@@ -78,7 +93,8 @@ class DeviceManager {
           });
         }
       },
-      fail: () => {
+      fail: (err) => {
+        console.error('[DeviceManager] 接口调用失败:', err);
         wx.showToast({ title: '接口调用失败', icon: 'none' });
         this.page.setData({
           heartRate: null,
@@ -94,7 +110,7 @@ class DeviceManager {
     this.clearRealtimeTimer();
     this._realtimeTimer = setInterval(() => {
       this.getDeviceRealtimeData(mac);
-    }, 30000);
+    }, 5000);
     this.page.setData({ _realtimeTimer: this._realtimeTimer });
   }
 

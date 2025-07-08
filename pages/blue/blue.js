@@ -2,6 +2,7 @@
 // 最终优化版，涵盖所有细节和注释
 
 const { checkBluetoothAuth, checkWifiAuth } = require('../../utils/permissionUtil');
+const commonUtil  = require('../../utils/commonUtil');
 
 Page({
     data: {
@@ -9,7 +10,6 @@ Page({
         currentTab: 0, // 当前步骤
         stepsCompleted: [false, false, false], // 步骤完成状态
         totalSteps: 3, // 总步骤数
-        progress: 33.33, // 进度条
         //蓝牙
         devices: [], // 搜索到的蓝牙设备
         connectedDeviceId: '', // 已连接的蓝牙设备ID.
@@ -27,14 +27,15 @@ Page({
         showWifiList:false, //是否显示wifi列表
         is5GConnected: false, //是否5G
         _has5GTip: false, // 防止重复弹出5G提示
-        _has5GTipModal: false // 进入WiFi步骤时重置弹窗标记
+        _has5GTipModal: false, // 进入WiFi步骤时重置弹窗标记
+        wifiMac:'' //wifi Mac地址
     },
 
     // 页面加载时初始化进度
     onLoad() {
-        this.setData({
-            progress: (1 / this.data.totalSteps) * 100
-        });
+        // this.setData({
+        //     progress: (1 / this.data.totalSteps) * 100
+        // });
     },
 
     // 页面显示时，如果在蓝牙步骤则自动搜索设备
@@ -217,8 +218,8 @@ Page({
     },
 
     // 连接蓝牙设备
-    connectBluetooth(e) {
-        const deviceId = e.currentTarget.dataset.mac;
+    connectBluetooth(deviceId) {
+        // const deviceId = e.currentTarget.dataset.deviceId;
         const device = this.data.devices.find(d => d.deviceId === deviceId);
         wx.createBLEConnection({
             deviceId,
@@ -229,11 +230,15 @@ Page({
                     deviceId: deviceId,
                     name: device ? device.name : ''
                 });
+                const wifiMacAddress = commonUtil.converAndSaveMac(deviceId);
+                if(wifiMacAddress){
+                  this.setData({wifiMac: wifiMacAddress})
+                  console.log('已保存wifi mac地址：',wifiMacAddress)
+                }
                 this.setData({
                     connectedDeviceId: deviceId,
                     stepsCompleted: [true, false, false],
-                    currentTab: 1,
-                    progress: (2 / this.data.totalSteps) * 100
+                    currentTab: 1
                 });
                 this.getServiceAndCharacteristics(deviceId);
                 this.initWifiStep();
@@ -304,8 +309,7 @@ Page({
     onBluetoothConnected() {
         this.setData({
             currentTab: 1,
-            stepsCompleted: [true, false, false],
-            progress: (2 / this.data.totalSteps) * 100
+            stepsCompleted: [true, false, false]
         });
         this._has5GTipModal = false; // 进入WiFi步骤时重置弹窗标记
         this.initWifiStep();
@@ -402,7 +406,7 @@ Page({
         wx.getWifiList({
           success: () => {
             wx.onGetWifiList((listRes) => {
-              // 只保留2.4G WiFi
+              // 只保留2.4G WiFi   
               const wifiList = (listRes.wifiList || []).filter(item => item.frequency && item.frequency < 3000 && item.SSID);
               this.setData({
                 isWifiConnected: false,
@@ -543,24 +547,21 @@ Page({
         if (currentTab < this.data.totalSteps - 1) {
             nextTab = currentTab + 1;
         }
-        const progress = parseFloat(((nextTab + 1) / this.data.totalSteps * 100).toFixed(2));
         this.setData({
             stepsCompleted: stepsCompleted,
-            currentTab: nextTab,
-            progress: progress
+            currentTab: nextTab
         });
     },
   
     // 配网完成，返回首页
     finishAndReturn() {
-        this.disconnectBluetooth();
+        // this.disconnectBluetooth();
         const stepsCompleted = [...this.data.stepsCompleted];
         stepsCompleted[2] = true;
         this.setData({
-            stepsCompleted: stepsCompleted,
-            progress: 100
+            stepsCompleted: stepsCompleted
         });
-        wx.navigateTo({
+        wx.switchTab({
           url: '/pages/home/home'
         });
     },
@@ -577,7 +578,6 @@ Page({
   
     // 返回上一级
     onBack() {
-        this.disconnectBluetooth();
         wx.navigateBack();
     },
 
@@ -604,12 +604,29 @@ Page({
                 deviceId,
                 complete: () => {
                     wx.removeStorageSync('connectedDevice');
-                    this.setData({ connectedDeviceId: '' });
+                    this.setData({
+                        connectedDeviceId: '',
+                        currentTab: 0,   // 断开后回到第一步
+                        devices: []      // 清空设备列表，防止显示旧数据
+                    });
                     wx.showToast({ title: '已断开设备', icon: 'none' });
                     // 重新刷新设备列表
                     this.searchBluetoothDevices();
                 }
             });
         }
-    }
+    },
+
+    /**
+     * 自定义switch点击事件
+     */
+    onCustomSwitchTap(e) {
+      const deviceId = e.currentTarget.dataset.deviceid;
+      if (deviceId === this.data.connectedDeviceId) {
+          // 已连接时点击，执行断开
+          this.disconnectCurrentDevice();
+          return;
+      }
+      this.connectBluetooth(deviceId);
+  }
   });

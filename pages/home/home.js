@@ -37,14 +37,15 @@ Page({
     console.log('[home] onShow');
     // 自动读取本地保存的设备信息
     const device = wx.getStorageSync('connectedDevice');
+    const wifiMac = wx.getStorageSync('wifi_device_mac')
     console.log('[home] 读取本地设备信息:', device);
     if (device && device.deviceId) {
       this.setData({
         deviceConnected: true,
         deviceName: device.name || ''
       });
-      this.deviceManager.getDeviceRealtimeData(device.deviceId);
-      this.deviceManager.startRealtimeTimer(device.deviceId);
+      this.deviceManager.getDeviceRealtimeData(wifiMac);
+      this.deviceManager.startRealtimeTimer(wifiMac); // 启动定时器
     } else {
       this.setData({
         deviceConnected: false,
@@ -54,7 +55,7 @@ Page({
         turnOver: null,
         isLeavePillow: true
       });
-      this.deviceManager.clearRealtimeTimer();
+      this.deviceManager.clearRealtimeTimer(); // 无设备时清理定时器
     }
   },
 
