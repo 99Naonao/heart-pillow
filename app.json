@@ -2,7 +2,8 @@
   "pages": [
     "pages/home/home",
     "pages/blue/blue",
-    "pages/report/report"
+    "pages/report/report",
+    "pages/mine/mine"
   ],
   "tabBar": {
     "color": "#c8c8c8",
@@ -21,6 +22,11 @@
         "selectedIconPath": "static/report_select.png",
         "text": "睡眠报告",
         "pagePath": "pages/report/report"
+      },{
+        "iconPath": "static/mine.png",
+        "selectedIconPath": "static/mine_selected.png",
+        "text": "个人中心",
+        "pagePath": "pages/mine/mine"
       }
     ]
   },

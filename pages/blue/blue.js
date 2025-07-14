@@ -1,7 +1,7 @@
 // pages/blue/blue.js
 // 最终优化版，涵盖所有细节和注释
 
-const { checkBluetoothAuth, checkWifiAuth } = require('../../utils/permissionUtil');
+const { checkWifiAuth, checkBluetoothAndLocationByDeviceType } = require('../../utils/permissionUtil');
 const commonUtil  = require('../../utils/commonUtil');
 
 Page({
@@ -33,9 +33,7 @@ Page({
 
     // 页面加载时初始化进度
     onLoad() {
-        // this.setData({
-        //     progress: (1 / this.data.totalSteps) * 100
-        // });
+
     },
 
     // 页面显示时，如果在蓝牙步骤则自动搜索设备
@@ -69,7 +67,7 @@ Page({
 
     // 检查所有权限（蓝牙步骤时调用）
     checkAllPermissions() {
-        return checkBluetoothAuth();
+        return checkBluetoothAndLocationByDeviceType();
     },
 
     // scroll-view下拉刷新（仅蓝牙步骤可用）
@@ -461,7 +459,7 @@ Page({
       }
       const cmd = `Good Sleep WIFI ID:"${this.data.wifiName}","${this.data.wifiPassword}"`;
       console.log('发送配网信息',cmd);
-      const buffer = this.stringToHex(cmd);
+      const buffer = this.stringToHex(cm  d);
       console.log('写入参数:', {
         deviceId: this.data.connectedDeviceId,
         serviceId: this.data.serviceId,
@@ -522,19 +520,21 @@ Page({
     handleDeviceStatus(status) {
       if (!this.isPageActive) return;
       if ((status === 0x01 || status === 0x04) && !this.data.wifiConnectSuccess) {
+        wx.hideLoading();
         this.setData({ wifiConnectSuccess: true });
-        wx.showToast({ title: 'WIFI连接上', icon: 'success' });
+        wx.showToast({ title: 'WIFI连接成功', icon: 'success' });
         this.completeStep();
       } else if (status === 0x03) {
-        wx.showToast({ title: 'WIFI连接失败', icon: 'none' });
+        console.error("wifi连接失败，错误码===",status)
       } else if (status === 0x05) {
-        wx.showToast({ title: 'TCP断开', icon: 'none' });
+        console.error("tcp断开，错误码===",status)
+         
       } else if (status === 0x06) {
-        wx.showToast({ title: 'WIFI断开', icon: 'none' });
+        console.error("wifi断开，错误码===",status)
       } else if (status === 0x07) {
-        wx.showToast({ title: '不在床', icon: 'none' });
+        console.error("不在床，错误码===",status)
       } else {
-        wx.showToast({ title: '未知状态', icon: 'none' });
+        console.error("未知状态，错误码===",status)
       }
     },
   

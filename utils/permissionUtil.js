@@ -66,9 +66,49 @@ function checkWifiAuth() {
   return checkLocationAuth();
 }
 
+// 新增：根据设备类型判断权限申请逻辑
+const CommonUtil = require('./commonUtil');
+
+/**
+ * 根据设备类型申请蓝牙/位置权限
+ * iPhone：只申请蓝牙权限（前提用户已开启微信定位权限）
+ * Android：申请蓝牙和位置权限
+ * @returns {Promise}
+ */
+function checkBluetoothAndLocationByDeviceType() {
+  const type = CommonUtil.getSystemType();
+  if (type === 'ios') {
+    // iOS 只需蓝牙权限，无需位置权限
+    return new Promise((resolve, reject) => {
+      wx.openBluetoothAdapter({
+        success: resolve,
+        fail: () => {
+          wx.showModal({
+            title: '蓝牙权限提醒',
+            content: '请确保已开启蓝牙功能，并在系统设置中授权蓝牙权限，否则无法正常连接设备。',
+            confirmText: '去设置',
+            cancelText: '取消',
+            success: (modalRes) => {
+              if (modalRes.confirm) wx.openSetting();
+              reject();
+            }
+          });
+        }
+      });
+    });
+  } else if (type === 'android') {
+    // Android 需先申请位置权限再申请蓝牙
+    return checkBluetoothAuth();
+  } else {
+    // 其它设备类型，默认都申请
+    return checkBluetoothAuth();
+  }
+}
+
 
 module.exports = {
   checkLocationAuth,
   checkBluetoothAuth,
-  checkWifiAuth
+  checkWifiAuth,
+  checkBluetoothAndLocationByDeviceType
 };

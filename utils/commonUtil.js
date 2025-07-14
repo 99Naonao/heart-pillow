@@ -106,6 +106,18 @@ class CommonUtil {
       .replace(/[^0-9A-F:]/g, '');
     return /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(normalizedMac);
   }
+
+  /**
+   * 获取系统类型（android/ios/other）
+   * @returns {string}
+   */
+  static getSystemType() {
+    const sys = wx.getDeviceInfo();
+    const platform = (sys.platform || '').toLowerCase();
+    if (platform === 'android') return 'android';
+    if (platform === 'ios') return 'ios';
+    return 'other';
+  }
 }
 
 module.exports = CommonUtil;
